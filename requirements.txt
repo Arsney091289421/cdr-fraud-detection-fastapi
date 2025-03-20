@@ -7,3 +7,4 @@ numpy
 scipy
 jinja2
 python-multipart
+gunicorn
