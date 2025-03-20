@@ -1,11 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query, Request
 import joblib
 import pandas as pd
 from pydantic import BaseModel, Field
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 
 
 rf_model = joblib.load("random_forest_model.pkl")
-
 
 expected_columns = [
     "Account_Length", "VMail_Message", "Day_Mins", "Day_Calls", "Day_Charge",
@@ -13,8 +15,10 @@ expected_columns = [
     "Intl_Mins", "Intl_Calls", "Intl_Charge", "CustServ_Calls"
 ]
 
-
 app = FastAPI()
+
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 class InputData(BaseModel):
@@ -37,17 +41,31 @@ class InputData(BaseModel):
     class Config:
         populate_by_name = True
 
-
 @app.post("/predict")
-def predict(data: InputData):
-    df = pd.DataFrame([data.model_dump(by_alias=True)])  
+def predict(data: InputData, threshold: float = Query(default=0.46, description="Fraud threshold")):
+    df = pd.DataFrame([data.model_dump(by_alias=True)])
+    df = df[expected_columns]
     
+    fraud_proba = rf_model.predict_proba(df)[0][1]
+    is_fraud = int(fraud_proba >= threshold)
     
-    df = df[expected_columns]  
-    
-    prediction = rf_model.predict(df)[0]  
-    return {"isFraud": int(prediction)}
+    return {
+        "fraud_detected": bool(is_fraud),
+        "fraud_probability": f"{fraud_proba * 100:.2f}%",
+        "threshold_used": threshold
+    }
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+@app.get("/ui")
+def serve_ui(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/")
+def root():
+    return RedirectResponse(url="/ui")
 
 if __name__ == "__main__":
     import uvicorn

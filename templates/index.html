@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 CDR Fraud Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/633/633816.png">
+</head>
+<body class="bg-gray-100">
+<div class="max-w-2xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow-xl">
+    <h1 class="text-3xl font-bold mb-6 text-center">📊 CDR Fraud Detection Dashboard</h1>
+    <form id="predict-form" class="grid grid-cols-2 gap-4">
+        <!-- Dynamically generated input fields will go here -->
+    </form>
+    <div class="flex justify-center mt-6">
+        <button type="button" onclick="submitForm()" class="px-6 py-2 bg-blue-600 text-white rounded-xl shadow hover:bg-blue-700">Predict</button>
+    </div>
+    <div id="result" class="text-center mt-6 text-xl font-semibold"></div>
+</div>
+
+<script>
+    const fields = [
+        { name: "Account_Length", label: "Account Length (days)", tooltip: "The duration the user account has been active (in days)" },
+        { name: "VMail_Message", label: "VMail Messages (count)", tooltip: "Number of voicemail messages received" },
+        { name: "Day_Mins", label: "Day Mins (minutes)", tooltip: "Total daytime call duration in minutes" },
+        { name: "Day_Calls", label: "Day Calls (times)", tooltip: "Number of daytime calls" },
+        { name: "Day_Charge", label: "Day Charge (USD)", tooltip: "Charges for daytime calls in USD" },
+        { name: "Eve_Mins", label: "Evening Mins (minutes)", tooltip: "Total evening call duration in minutes" },
+        { name: "Eve_Calls", label: "Evening Calls (times)", tooltip: "Number of evening calls" },
+        { name: "Eve_Charge", label: "Evening Charge (USD)", tooltip: "Charges for evening calls in USD" },
+        { name: "Night_Mins", label: "Night Mins (minutes)", tooltip: "Total night call duration in minutes" },
+        { name: "Night_Calls", label: "Night Calls (times)", tooltip: "Number of night calls" },
+        { name: "Night_Charge", label: "Night Charge (USD)", tooltip: "Charges for night calls in USD" },
+        { name: "Intl_Mins", label: "International Mins (minutes)", tooltip: "Total international call duration in minutes" },
+        { name: "Intl_Calls", label: "International Calls (times)", tooltip: "Number of international calls" },
+        { name: "Intl_Charge", label: "International Charge (USD)", tooltip: "Charges for international calls in USD" },
+        { name: "CustServ_Calls", label: "Customer Service Calls (times)", tooltip: "Number of calls made to customer service" }
+    ];
+
+    const form = document.getElementById('predict-form');
+
+    fields.forEach(field => {
+        const label = document.createElement('label');
+        label.innerText = field.label;
+        label.title = field.tooltip;
+        label.className = "block text-gray-700 font-medium";
+
+        const input = document.createElement('input');
+        input.type = "number";
+        input.step = "any";
+        input.name = field.name;
+        input.id = field.name;
+        input.required = true;
+        input.className = "w-full mt-1 p-2 border border-gray-300 rounded-md";
+
+        const container = document.createElement('div');
+        container.appendChild(label);
+        container.appendChild(input);
+
+        form.appendChild(container);
+    });
+
+    async function submitForm() {
+        const formData = {};
+        fields.forEach(field => {
+            formData[field.name] = parseFloat(document.getElementById(field.name).value);
+        });
+
+        document.getElementById('result').innerText = "Predicting... Please wait.";
+
+        const response = await fetch('/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        document.getElementById('result').innerHTML = `<div class='mt-4 p-4 rounded-xl ${result.fraud_detected ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}'>
+            <p>Fraud Probability: <strong>${result.fraud_probability}</strong></p>
+            <p>Prediction: ${result.fraud_detected ? '🚨 <strong>FRAUD DETECTED</strong>' : '✅ Legitimate'}</p>
+        </div>`;
+        document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+</body>
+</html>
